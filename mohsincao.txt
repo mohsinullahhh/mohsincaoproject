@@ -1,0 +1,98 @@
+
+
+#include <WiFi.h> //it has functions that connect wifi to esp32
+#include <Wire.h> 
+#include "DHT.h"  //include a DHT library
+
+#define DHTTYPE DHT11 //inside dht library there are two types of dht sensors dht11 and dht22, we have to select which dht sensor we are using
+
+uint8_t DHTPin = 16;  //unit8_t is an unsigned 8 bit data type, DHTPin is a variable with port 16
+
+//an object 'dht' with class DHT with 2 arguments 
+DHT dht(DHTPin, DHTTYPE); 
+
+//variable declaration
+float Temperature;
+float Humidity;
+
+const char* ssid = "AndroidAP";   //internet username
+const char* password = "nustseecs20"; //internet password
+
+WiFiServer server(80);  //to connect server with a port
+
+
+//the code is exected from top to bottom, setup is a function where code in this function is executed once, we make all the connections and declarations in this function
+void setup() {
+//baud rate value= 115200 which means exactly at what rate the values are displayed on screen
+Serial.begin(115200);
+//input from DHTPin 
+pinMode(DHTPin, INPUT);
+
+//dht is on and starts taking values from the sensor
+dht.begin();
+
+
+Serial.println("Connecting to Wifi Network");
+//prints wifi username
+Serial.println(ssid);
+WiFi.begin(ssid, password);   //after taking in username and password, connects wifi, using wifi.h library function
+
+while (WiFi.status() != WL_CONNECTED) { //try a connection in a loop if wifi is not being connected, it stays in a while loop forever until we are connected with a wifi
+delay(500);
+Serial.print("");
+}
+//if outside while loop, that means we are connected to wifi and specifications are dsiplayed on the screen
+Serial.println("");
+Serial.println("Successfully connected to WiFi.");
+Serial.println("IP address of ESP32 is : ");
+Serial.println(WiFi.localIP());   //Ip address of ESP32 is displayed here which will be copied and pasted on the internet to display results
+server.begin();
+Serial.println("Server started");
+
+}
+
+
+void loop()
+{
+ //variables taking values from the sensor reading
+ //readtemperature() function in dht library  
+Temperature = dht.readTemperature(); 
+//readhumidity() function in dht library
+Humidity = dht.readHumidity(); 
+
+//wificlient is a class and client is an object, if server availible
+WiFiClient client = server.available();
+
+if (client) 
+{ 
+Serial.println("Web Client connected ");
+String request = client.readStringUntil('\r'); 
+
+//placing some html to display readings on webpage
+client.println("HTTP/1.1 200 OK");
+client.println("Content-type:text/html");
+client.println("Connection: close");
+client.println();
+client.println("<!DOCTYPE html><html>");
+client.println("<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
+client.println("<link rel=\"icon\" href=\"data:,\">");
+client.println("</style></head><body><h1>ESP32 Web Server Reading sensor values</h1>");
+client.println("<h2>DHT11</h2>");
+client.println("<h2>Semester Project</h2>");
+client.println("<table><tr><th>MEASUREMENT</th><th>VALUE</th></tr>");
+client.println("<tr><td>Temp. Celsius</td><td><span class=\"sensor\">");
+client.println(dht.readTemperature());
+client.println(" *C</span></td></tr>"); 
+client.println("<tr><td>Temp. Fahrenheit</td><td><span class=\"sensor\">");
+client.println(1.8 * dht.readTemperature() + 32);
+client.println(" *F</span></td></tr>"); 
+client.println("<tr><td>Humidity</td><td><span class=\"sensor\">");
+client.println(dht.readHumidity());
+client.println(" %</span></td></tr>"); 
+client.println("</body></html>"); 
+client.stop();
+client.println();
+Serial.println("Client disconnected.");
+Serial.println("");
+}
+}
